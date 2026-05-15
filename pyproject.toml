@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lazystrike"
+version = "0.1.0"
+description = "ViT stability score comparison experiments"
+requires-python = ">=3.10,<3.12"
+
+[tool.setuptools.packages.find]
+include = ["lazystrike*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+

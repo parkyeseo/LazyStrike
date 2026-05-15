@@ -1,0 +1,9 @@
+logging:
+  run_name: E1_local_var
+  tags: [imagenet100, E1, cell_local_var]
+model:
+  score:
+    name: local_var
+    kwargs:
+      window_size: 8
+

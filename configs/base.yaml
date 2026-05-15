@@ -1,0 +1,58 @@
+data:
+  name: imagenet100
+  root: /mnt/newdisk/yeseo_item/imagenet-100
+  num_classes: 100
+  input_size: 224
+  batch_size_per_gpu: 256
+  num_workers: 8
+
+paths:
+  imagenet_raw: /mnt/newdisk/yeseo_item/imagenet/raw
+  imagenet_full: /mnt/newdisk/yeseo_item/imagenet/full
+  imagenet100_classes: /mnt/newdisk/yeseo_item/UADL_data/imagenet100_classes.txt
+  checkpoint_root: /mnt/newdisk/yeseo_item/UADL_checkpoints
+  viz_root: /mnt/newdisk/yeseo_item/UADL_viz
+
+model:
+  backbone: vit_small_patch16_224
+  drop_path_rate: 0.1
+  pretrained: false
+  score: null
+  aggregator:
+    name: topk_channel
+    kwargs:
+      K: 98
+
+train:
+  seed: 0
+  deterministic: false
+  epochs: 100
+  warmup_epochs: 5
+  lr: 5.0e-4
+  lr_min: 1.0e-6
+  warmup_lr: 1.0e-6
+  weight_decay: 0.05
+  gamma_lr_scale: 0.1
+  amp: true
+  grad_clip: 1.0
+  eval_every: 5
+  save_every: 20
+  label_smoothing: 0.1
+  resume: null
+  mixup:
+    enabled: true
+    mixup_alpha: 0.8
+    cutmix_alpha: 1.0
+    prob: 1.0
+    switch_prob: 0.5
+    mode: batch
+
+logging:
+  use_wandb: true
+  entity: yescher-kyung-hee-university
+  project: UADL
+  run_name: null
+  tags: [imagenet100]
+  log_every: 50
+  log_score_every: 5
+

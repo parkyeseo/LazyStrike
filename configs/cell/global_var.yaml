@@ -1,0 +1,8 @@
+logging:
+  run_name: E1_global_var
+  tags: [imagenet100, E1, cell_global_var]
+model:
+  score:
+    name: global_var
+    kwargs: {}
+

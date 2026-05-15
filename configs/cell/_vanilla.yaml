@@ -1,0 +1,11 @@
+logging:
+  run_name: baseline_vanilla
+  tags: [imagenet100, baseline]
+model:
+  score:
+    name: none
+  aggregator:
+    name: topk_channel
+    kwargs:
+      K: 98
+

@@ -1,0 +1,61 @@
+import pytest
+
+torch = pytest.importorskip("torch")
+pytest.importorskip("timm")
+pytest.importorskip("omegaconf")
+
+from omegaconf import OmegaConf  # noqa: E402
+
+from lazystrike.models.vit import build_model  # noqa: E402
+from lazystrike.train.optimizer import build_optimizer  # noqa: E402
+
+
+def make_cfg(score_name, score_kwargs=None, K=98):
+    return OmegaConf.create(
+        {
+            "data": {"num_classes": 100, "input_size": 224},
+            "model": {
+                "backbone": "vit_small_patch16_224",
+                "drop_path_rate": 0.0,
+                "pretrained": False,
+                "score": {"name": score_name, "kwargs": score_kwargs or {}},
+                "aggregator": {"name": "topk_channel", "kwargs": {"K": K}},
+            },
+            "train": {"lr": 5e-4, "weight_decay": 0.05, "gamma_lr_scale": 0.1},
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "name,kwargs",
+    [
+        ("fft", {"sigma": 24.0}),
+        ("global_var", {}),
+        ("tcig", {"kernel_size": 3, "init_W": 2.0}),
+        ("local_var", {"window_size": 8}),
+    ],
+)
+def test_vit_forward_shape_all_cells(name, kwargs):
+    model = build_model(make_cfg(name, kwargs), num_classes=100).eval()
+    x = torch.randn(1, 3, 224, 224)
+    with torch.no_grad():
+        logits = model(x)
+    assert logits.shape == (1, 100)
+
+
+def test_vit_backward_runs():
+    model = build_model(make_cfg("local_var", {"window_size": 8}), num_classes=100).train()
+    logits = model(torch.randn(1, 3, 224, 224))
+    loss = torch.nn.functional.cross_entropy(logits, torch.tensor([0]))
+    loss.backward()
+    assert sum(p.grad is not None for p in model.parameters()) > 0
+
+
+def test_tcig_gamma_is_in_param_groups():
+    model = build_model(make_cfg("tcig", {"kernel_size": 3, "init_W": 2.0}), num_classes=100)
+    optimizer = build_optimizer(make_cfg("tcig", {"kernel_size": 3, "init_W": 2.0}), model)
+    names = [group.get("group_name") for group in optimizer.param_groups]
+    assert "tcig_gamma" in names
+    gamma_group = next(group for group in optimizer.param_groups if group.get("group_name") == "tcig_gamma")
+    assert abs(gamma_group["lr"] - 5e-5) < 1e-12
+

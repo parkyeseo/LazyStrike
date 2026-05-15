@@ -1,0 +1,9 @@
+logging:
+  run_name: E5_local_var_w4
+  tags: [imagenet100, E5, w_sweep]
+model:
+  score:
+    name: local_var
+    kwargs:
+      window_size: 4
+

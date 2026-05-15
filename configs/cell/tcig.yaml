@@ -1,0 +1,10 @@
+logging:
+  run_name: E1_tcig
+  tags: [imagenet100, E1, cell_tcig]
+model:
+  score:
+    name: tcig
+    kwargs:
+      kernel_size: 3
+      init_W: 2.0
+

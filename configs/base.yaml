@@ -49,10 +49,9 @@ train:
 
 logging:
   use_wandb: true
-  entity: yescher-kyung-hee-university
-  project: UADL
+  entity: UADL-LazyStrike
+  project: lazy-strike-v1
   run_name: null
   tags: [imagenet100]
   log_every: 50
   log_score_every: 5
-

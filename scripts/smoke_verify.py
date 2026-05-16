@@ -82,10 +82,20 @@ def main() -> None:
     cfg.model.score = {"name": "tcig", "kwargs": {"kernel_size": 3, "init_W": 2.0}}
     model = build_model(cfg, num_classes=100)
     optimizer = build_optimizer(cfg, model)
+    assert not any(group.get("group_name") == "tcig_gamma" for group in optimizer.param_groups)
+    assert "W_gamma" not in dict(model.named_parameters())
+    print("tcig gamma fixed by default for hard top-k ok")
+
+    cfg.model.score = {
+        "name": "tcig",
+        "kwargs": {"kernel_size": 3, "init_W": 2.0, "learnable_gamma": True},
+    }
+    model = build_model(cfg, num_classes=100)
+    optimizer = build_optimizer(cfg, model)
     assert any(group.get("group_name") == "tcig_gamma" for group in optimizer.param_groups)
     gamma_lr = next(group["lr"] for group in optimizer.param_groups if group.get("group_name") == "tcig_gamma")
     assert abs(gamma_lr - 5e-5) < 1e-12
-    print("tcig gamma optimizer group ok")
+    print("tcig gamma optimizer group opt-in ok")
     print("SMOKE_VERIFY_OK")
 
 

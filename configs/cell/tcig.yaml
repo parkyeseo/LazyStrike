@@ -7,4 +7,4 @@ model:
     kwargs:
       kernel_size: 3
       init_W: 2.0
-
+      learnable_gamma: false

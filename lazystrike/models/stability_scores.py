@@ -71,15 +71,34 @@ class GlobalVarianceScore(StabilityScore):
 
 
 class TCIGScore(StabilityScore):
-    """Cell 3: local sliding smoothing plus symmetric exponential gate."""
+    """Cell 3: local sliding smoothing plus symmetric exponential gate.
 
-    def __init__(self, dim: int, kernel_size: int = 3, init_W: float = 2.0):
+    The LaSt-style hard top-K aggregator uses scores only to form discrete
+    indices, so gradients do not flow from the classification loss into score
+    parameters. By default gamma is therefore a fixed buffer. Setting
+    ``learnable_gamma=True`` registers ``W_gamma`` as a parameter for
+    experimental differentiable aggregators, but it is not compatible with the
+    exact hard top-K training path without an additional surrogate loss.
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        kernel_size: int = 3,
+        init_W: float = 2.0,
+        learnable_gamma: bool = False,
+    ):
         super().__init__()
         if kernel_size % 2 != 1:
             raise ValueError("kernel_size must be odd for symmetric padding")
         self.dim = int(dim)
         self.k = int(kernel_size)
-        self.W_gamma = nn.Parameter(torch.tensor(float(init_W)))
+        self.learnable_gamma = bool(learnable_gamma)
+        raw_gamma = torch.tensor(float(init_W))
+        if self.learnable_gamma:
+            self.W_gamma = nn.Parameter(raw_gamma)
+        else:
+            self.register_buffer("W_gamma", raw_gamma)
 
     @property
     def gamma(self) -> torch.Tensor:
@@ -149,4 +168,3 @@ def build_score(cfg: Any, dim: int) -> StabilityScore | None:
         raise KeyError(f"Unknown score module {name!r}. Choices: {sorted(SCORE_REGISTRY)}")
     kwargs = dict(_cfg_get(cfg, "kwargs", {}) or {})
     return SCORE_REGISTRY[name](dim=dim, **kwargs)
-

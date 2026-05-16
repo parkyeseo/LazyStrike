@@ -51,11 +51,19 @@ def test_vit_backward_runs():
     assert sum(p.grad is not None for p in model.parameters()) > 0
 
 
-def test_tcig_gamma_is_in_param_groups():
+def test_tcig_gamma_is_fixed_by_default_for_hard_topk():
     model = build_model(make_cfg("tcig", {"kernel_size": 3, "init_W": 2.0}), num_classes=100)
     optimizer = build_optimizer(make_cfg("tcig", {"kernel_size": 3, "init_W": 2.0}), model)
+    names = [group.get("group_name") for group in optimizer.param_groups]
+    assert "tcig_gamma" not in names
+    assert "W_gamma" not in dict(model.named_parameters())
+
+
+def test_tcig_gamma_param_group_when_explicitly_learnable():
+    cfg = make_cfg("tcig", {"kernel_size": 3, "init_W": 2.0, "learnable_gamma": True})
+    model = build_model(cfg, num_classes=100)
+    optimizer = build_optimizer(cfg, model)
     names = [group.get("group_name") for group in optimizer.param_groups]
     assert "tcig_gamma" in names
     gamma_group = next(group for group in optimizer.param_groups if group.get("group_name") == "tcig_gamma")
     assert abs(gamma_group["lr"] - 5e-5) < 1e-12
-

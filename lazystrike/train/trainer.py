@@ -175,13 +175,23 @@ def load_checkpoint(model, optimizer, scheduler, ckpt_path: str, device) -> int:
     return int(ckpt.get("epoch", -1)) + 1
 
 
+def load_existing_best_top1(ckpt_dir: str, device) -> float:
+    best_path = Path(ckpt_dir) / "best.pth"
+    if not best_path.is_file():
+        return 0.0
+    ckpt = torch.load(best_path, map_location=device, weights_only=False)
+    metrics = ckpt.get("metrics") or {}
+    top1 = metrics.get("top1", 0.0)
+    return float(top1) if top1 is not None else 0.0
+
+
 def run_training(cfg, model, optimizer, scheduler, train_loader, val_loader, logger, device, ckpt_dir: str) -> float:
     trainer = Trainer(cfg, model, optimizer, scheduler, train_loader, val_loader, logger, device)
     start_epoch = 0
     if cfg.train.get("resume", None):
         start_epoch = load_checkpoint(model, optimizer, scheduler, str(cfg.train.resume), device)
 
-    best_top1 = 0.0
+    best_top1 = load_existing_best_top1(ckpt_dir, device)
     for epoch in range(start_epoch, int(cfg.train.epochs)):
         trainer.train_one_epoch(epoch)
         should_eval = (epoch + 1) % int(cfg.train.eval_every) == 0 or epoch == int(cfg.train.epochs) - 1
@@ -195,4 +205,3 @@ def run_training(cfg, model, optimizer, scheduler, train_loader, val_loader, log
     if is_main():
         save_checkpoint(cfg, model, optimizer, scheduler, int(cfg.train.epochs) - 1, None, None, ckpt_dir, "last.pth")
     return best_top1
-

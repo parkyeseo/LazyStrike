@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -19,12 +18,13 @@ class ImageNetBBoxSubset(Dataset):
         transform=None,
         input_size: int = 224,
         bbox_dir_name: str = "val_bbox",
+        max_bbox_area_ratio: float | None = 0.25,
     ):
         super().__init__()
         self.root = Path(imagenet_root)
         self.transform = transform
         self.input_size = int(input_size)
-        self.samples: list[tuple[str, int, tuple[int, int, int, int], tuple[int, int]]] = []
+        self.samples: list[tuple[str, str, int, tuple[int, int, int, int], tuple[int, int]]] = []
 
         wnids = [w.strip() for w in wnids if w.strip()]
         wnid_to_idx = {wnid: i for i, wnid in enumerate(sorted(wnids))}
@@ -51,23 +51,36 @@ class ImageNetBBoxSubset(Dataset):
             y2 = int(float(box.findtext("ymax")))
             width = int(float(size.findtext("width")))
             height = int(float(size.findtext("height")))
+            if max_bbox_area_ratio is not None:
+                bbox_area = max(0, x2 - x1) * max(0, y2 - y1)
+                image_area = width * height
+                if image_area <= 0 or not (bbox_area < image_area * max_bbox_area_ratio):
+                    continue
             image_path = self.root / "val" / wnid / f"{xml_path.stem}.JPEG"
             if not image_path.is_file():
                 flat_image_path = self.root / "val" / f"{xml_path.stem}.JPEG"
                 image_path = flat_image_path
             if image_path.is_file():
-                self.samples.append((str(image_path), wnid_to_idx[wnid], (x1, y1, x2, y2), (width, height)))
+                self.samples.append(
+                    (str(image_path), xml_path.stem, wnid_to_idx[wnid], (x1, y1, x2, y2), (width, height))
+                )
 
     def __len__(self) -> int:
         return len(self.samples)
 
     def __getitem__(self, idx: int):
-        image_path, label, bbox, image_size = self.samples[idx]
+        image_path, image_id, label, bbox, image_size = self.samples[idx]
         image = Image.open(image_path).convert("RGB")
         if self.transform is not None:
             image = self.transform(image)
         x1, y1, x2, y2 = bbox
         width, height = image_size
-        bbox_norm = torch.tensor([x1 / width, y1 / height, x2 / width, y2 / height], dtype=torch.float32)
-        return image, label, bbox_norm
-
+        return {
+            "image": image,
+            "target": torch.tensor(label, dtype=torch.long),
+            "bbox": torch.tensor([x1, y1, x2, y2], dtype=torch.float32),
+            "image_width": torch.tensor(width, dtype=torch.long),
+            "image_height": torch.tensor(height, dtype=torch.long),
+            "image_id": image_id,
+            "path": image_path,
+        }

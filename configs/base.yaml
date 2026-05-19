@@ -17,6 +17,7 @@ model:
   backbone: vit_small_patch16_224
   drop_path_rate: 0.1
   pretrained: false
+  vanilla_pool: cls
   score: null
   aggregator:
     name: topk_channel

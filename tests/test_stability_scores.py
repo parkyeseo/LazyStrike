@@ -75,6 +75,5 @@ def test_fft_matches_manual_formula(x):
         x_fft = torch.fft.fftshift(x_fft, dim=-1) * module.gs_k
         x_fft = torch.fft.ifftshift(x_fft, dim=-1)
         x_hat = torch.fft.ifft(x_fft, dim=-1).real
-        expected = x_hat / (torch.abs(x_hat - x.float()) + 1e-6)
+        expected = x.float() / (torch.abs(x_hat - x.float()) + 1e-6)
     assert torch.allclose(scores, expected.to(scores.dtype), atol=1e-5)
-

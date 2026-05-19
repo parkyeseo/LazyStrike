@@ -53,7 +53,9 @@ class FFTScore(StabilityScore):
         x_fft = x_fft * kernel
         x_fft = torch.fft.ifftshift(x_fft, dim=-1)
         x_hat = torch.fft.ifft(x_fft, dim=-1).real
-        scores = x_hat / (torch.abs(x_hat - x_fp32) + EPS)
+        # Official LaSt-ViT uses the raw patch value as numerator:
+        # diff = x_detach / abs(lowpass_fft(x_detach) - x_detach).
+        scores = x_fp32 / (torch.abs(x_hat - x_fp32) + EPS)
         return scores.to(orig_dtype)
 
 

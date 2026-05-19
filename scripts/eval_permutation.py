@@ -24,22 +24,27 @@ def evaluate_with_perm(model, loader, device, perm: torch.Tensor, protocol: str)
     for images, targets in loader:
         images = images.to(device, non_blocking=True)
         targets = targets.to(device, non_blocking=True)
-        patches = model.forward_features(images)
+        cls_token, patches = model.forward_tokens(images)
         if protocol == "score_only" and model.score is not None:
             scores = model.score(patches[:, :, perm])
             scores = scores[:, :, inv]
             cls = model.aggregator(patches, scores)
             logits = model.head(cls)
         elif protocol == "everything":
-            patches = patches[:, :, perm]
             if model.score is None:
-                cls = patches.mean(dim=1)
+                if model.vanilla_pool == "mean":
+                    cls = patches[:, :, perm].mean(dim=1)
+                else:
+                    if cls_token is None:
+                        raise RuntimeError("vanilla_pool='cls' requires a backbone CLS token")
+                    cls = cls_token[:, perm]
             else:
+                patches = patches[:, :, perm]
                 scores = model.score(patches)
                 cls = model.aggregator(patches, scores)
             logits = torch.nn.functional.linear(cls, model.head.weight[:, inv], model.head.bias)
         else:
-            cls = patches.mean(dim=1)
+            cls, _scores = model.aggregate(patches, cls_token)
             logits = model.head(cls)
         correct += int((logits.argmax(dim=1) == targets).sum().item())
         total += int(targets.numel())

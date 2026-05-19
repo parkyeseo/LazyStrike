@@ -10,10 +10,10 @@ def random_channel_permutation(dim: int, seed: int, device) -> torch.Tensor:
 
 @torch.no_grad()
 def aggregate_with_score_permutation(model, images: torch.Tensor, perm: torch.Tensor):
-    patches = model.forward_features(images)
+    cls_token, patches = model.forward_tokens(images)
     if model.score is None:
-        return patches.mean(dim=1)
+        cls, _scores = model.aggregate(patches, cls_token)
+        return cls
     inv = torch.argsort(perm)
     scores = model.score(patches[:, :, perm])[:, :, inv]
     return model.aggregator(patches, scores)
-

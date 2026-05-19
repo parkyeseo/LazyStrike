@@ -1,9 +1,8 @@
 logging:
-  run_name: E1_fft
-  tags: [imagenet100, E1, cell_fft]
+  run_name: E1_fft_official
+  tags: [imagenet100, E1, cell_fft, official]
 model:
   score:
     name: fft
     kwargs:
       sigma: 24.0
-

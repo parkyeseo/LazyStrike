@@ -2,7 +2,12 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from lazystrike.eval.pib import bbox_to_patch_set, evaluate_pib, shi_patch_score  # noqa: E402
+from lazystrike.eval.pib import (  # noqa: E402
+    bbox_to_patch_set,
+    evaluate_pib,
+    patch_scores_from_model_output,
+    shi_patch_score,
+)
 
 
 def test_bbox_to_patch_set_landscape_matches_last_vit_geometry():
@@ -45,14 +50,17 @@ class DummyModel:
     def eval(self):
         return self
 
-    def forward_with_scores(self, images):
+    def forward_tokens(self, images):
         batch = images.shape[0]
         patches = torch.zeros(batch, 196, 4)
+        cls = torch.ones(batch, 4)
+        return cls, patches
+
+    def aggregate(self, patches, cls):
+        batch = patches.shape[0]
         scores = torch.zeros(batch, 196, 4)
         scores[:, 15, :] = 10.0
-        cls = torch.zeros(batch, 4)
-        logits = torch.zeros(batch, 1)
-        return patches, scores, cls, logits
+        return cls, scores
 
 
 def test_evaluate_pib_uses_patch_overlap_set():
@@ -74,3 +82,33 @@ def test_evaluate_pib_uses_patch_overlap_set():
     assert result.total == 1
     assert result.hits == 1
     assert result.pib == 1.0
+
+
+def test_patch_score_shi_uses_encoder_cls_not_pooled_cls():
+    patches = torch.tensor([[[1.0, 0.0], [0.0, 1.0]]])
+    encoder_cls = torch.tensor([[1.0, 0.0]])
+    pooled_cls = torch.tensor([[0.0, 1.0]])
+    scores = patch_scores_from_model_output(
+        model=DummyModel(),
+        patches=patches,
+        scores=None,
+        pooled_cls=pooled_cls,
+        encoder_cls=encoder_cls,
+        score_method="patch_score_shi",
+    )
+    assert int(scores.argmax(dim=1).item()) == 0
+
+
+def test_patch_score_pooled_uses_final_representation():
+    patches = torch.tensor([[[1.0, 0.0], [0.0, 1.0]]])
+    encoder_cls = torch.tensor([[1.0, 0.0]])
+    pooled_cls = torch.tensor([[0.0, 1.0]])
+    scores = patch_scores_from_model_output(
+        model=DummyModel(),
+        patches=patches,
+        scores=None,
+        pooled_cls=pooled_cls,
+        encoder_cls=encoder_cls,
+        score_method="patch_score_pooled",
+    )
+    assert int(scores.argmax(dim=1).item()) == 1

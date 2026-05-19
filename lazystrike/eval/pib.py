@@ -77,11 +77,16 @@ def patch_scores_from_model_output(
     model,
     patches: torch.Tensor,
     scores: torch.Tensor | None,
-    cls: torch.Tensor,
+    pooled_cls: torch.Tensor,
+    encoder_cls: torch.Tensor | None,
     score_method: str,
 ) -> torch.Tensor:
     if score_method == "patch_score_shi":
-        return shi_patch_score(patches, cls)
+        if encoder_cls is None:
+            raise RuntimeError("patch_score_shi requires an encoder CLS token")
+        return shi_patch_score(patches, encoder_cls)
+    if score_method == "patch_score_pooled":
+        return shi_patch_score(patches, pooled_cls)
     if score_method == "raw_score":
         if scores is None:
             raise RuntimeError("raw_score requires a stability score model")
@@ -111,8 +116,16 @@ def evaluate_pib(
         widths = batch["image_width"]
         heights = batch["image_height"]
 
-        patches, scores, cls, _logits = model.forward_with_scores(images)
-        patch_scores = patch_scores_from_model_output(model, patches, scores, cls, score_method)
+        encoder_cls, patches = model.forward_tokens(images)
+        pooled_cls, scores = model.aggregate(patches, encoder_cls)
+        patch_scores = patch_scores_from_model_output(
+            model,
+            patches,
+            scores,
+            pooled_cls,
+            encoder_cls,
+            score_method,
+        )
         top1 = patch_scores.argmax(dim=1).cpu()
 
         for i in range(int(top1.numel())):

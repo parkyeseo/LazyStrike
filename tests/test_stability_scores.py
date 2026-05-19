@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -68,7 +70,8 @@ def test_tcig_output_range(x):
 
 
 def test_fft_matches_manual_formula(x):
-    module = FFTScore(dim=D, sigma=24.0)
+    module = FFTScore(dim=D)
+    assert module.sigma == pytest.approx(math.sqrt(D))
     with torch.no_grad():
         scores = module(x)
         x_fft = torch.fft.fft(x.float(), dim=-1)

@@ -30,7 +30,7 @@ def make_cfg(score_name, score_kwargs=None, K=98, vanilla_pool="cls"):
 @pytest.mark.parametrize(
     "name,kwargs",
     [
-        ("fft", {"sigma": 24.0}),
+        ("fft", {}),
         ("global_var", {}),
         ("tcig", {"kernel_size": 3, "init_W": 2.0}),
         ("local_var", {"window_size": 8}),

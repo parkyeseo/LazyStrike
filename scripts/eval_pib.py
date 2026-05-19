@@ -33,7 +33,16 @@ def main() -> None:
     parser.add_argument("--ckpt", required=True)
     parser.add_argument("--imagenet-root", default="/mnt/newdisk/yeseo_item/imagenet/full")
     parser.add_argument("--classes-txt", default="/mnt/newdisk/yeseo_item/UADL_data/imagenet100_classes.txt")
-    parser.add_argument("--score-method", default="patch_score_shi", choices=["patch_score_shi", "raw_score", "vote_count"])
+    parser.add_argument(
+        "--score-method",
+        default="patch_score_shi",
+        choices=["patch_score_shi", "patch_score_pooled", "raw_score", "vote_count"],
+        help=(
+            "patch_score_shi matches official evaluate_patch_hit.py: "
+            "cosine(patch, encoder learned CLS). patch_score_pooled uses the "
+            "model's final pooled token instead."
+        ),
+    )
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--resize-short", type=int, default=DEFAULT_RESIZE_SHORT)

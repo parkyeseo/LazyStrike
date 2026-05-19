@@ -4,5 +4,4 @@ logging:
 model:
   score:
     name: fft
-    kwargs:
-      sigma: 24.0
+    kwargs: {}

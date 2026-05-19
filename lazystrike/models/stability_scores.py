@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+import math
 
 import torch
 import torch.nn as nn
@@ -31,7 +32,7 @@ class FFTScore(StabilityScore):
         if kernel_mode != "gaussian":
             raise ValueError(f"Unsupported kernel_mode={kernel_mode!r}")
         self.dim = int(dim)
-        self.sigma = float(sigma if sigma is not None else dim / 16.0)
+        self.sigma = float(sigma if sigma is not None else math.sqrt(dim))
         self.register_buffer(
             "gs_k",
             self._gaussian_kernel_1d(self.dim, self.sigma),

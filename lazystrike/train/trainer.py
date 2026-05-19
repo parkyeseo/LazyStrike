@@ -50,6 +50,7 @@ class Trainer:
             if self.mixup is not None
             else nn.CrossEntropyLoss(label_smoothing=float(cfg.train.label_smoothing))
         )
+        self.val_criterion = nn.CrossEntropyLoss()
 
     def train_one_epoch(self, epoch: int) -> None:
         self.model.train()
@@ -115,28 +116,32 @@ class Trainer:
             )
 
     @torch.no_grad()
-    def evaluate(self, epoch: int) -> tuple[float, float]:
+    def evaluate(self, epoch: int) -> tuple[float, float, float]:
         self.model.eval()
         correct1 = 0
         correct5 = 0
+        loss_sum = 0.0
         total = 0
         for images, targets in self.val_loader:
             images = images.to(self.device, non_blocking=True)
             targets = targets.to(self.device, non_blocking=True)
             with torch.cuda.amp.autocast(enabled=_autocast_enabled(self.cfg)):
                 logits = self.model(images)
+                loss = self.val_criterion(logits, targets)
             c1, c5 = topk_correct(logits, targets, (1, 5))
             correct1 += c1
             correct5 += c5
+            loss_sum += float(loss.item()) * int(targets.numel())
             total += int(targets.numel())
 
-        stats = torch.tensor([correct1, correct5, total], dtype=torch.float64, device=self.device)
+        stats = torch.tensor([correct1, correct5, loss_sum, total], dtype=torch.float64, device=self.device)
         all_reduce_sum(stats)
-        top1 = float(stats[0].item() / max(stats[2].item(), 1.0))
-        top5 = float(stats[1].item() / max(stats[2].item(), 1.0))
+        top1 = float(stats[0].item() / max(stats[3].item(), 1.0))
+        top5 = float(stats[1].item() / max(stats[3].item(), 1.0))
+        val_loss = float(stats[2].item() / max(stats[3].item(), 1.0))
         if is_main():
-            self.logger.log({"val/top1": top1, "val/top5": top5, "epoch": epoch})
-        return top1, top5
+            self.logger.log({"val/loss": val_loss, "val/top1": top1, "val/top5": top5, "epoch": epoch})
+        return top1, top5, val_loss
 
     def _gamma_lr(self) -> float:
         for group in self.optimizer.param_groups:
@@ -152,14 +157,25 @@ class Trainer:
         return None
 
 
-def save_checkpoint(cfg, model, optimizer, scheduler, epoch: int, top1, top5, ckpt_dir: str, name: str) -> None:
+def save_checkpoint(
+    cfg,
+    model,
+    optimizer,
+    scheduler,
+    epoch: int,
+    top1,
+    top5,
+    ckpt_dir: str,
+    name: str,
+    val_loss=None,
+) -> None:
     Path(ckpt_dir).mkdir(parents=True, exist_ok=True)
     state = {
         "model": unwrap_model(model).state_dict(),
         "optimizer": optimizer.state_dict(),
         "scheduler": scheduler.state_dict(),
         "epoch": int(epoch),
-        "metrics": {"top1": top1, "top5": top5},
+        "metrics": {"top1": top1, "top5": top5, "val_loss": val_loss},
         "cfg": OmegaConf.to_container(cfg, resolve=True),
     }
     torch.save(state, os.path.join(ckpt_dir, name))
@@ -196,10 +212,10 @@ def run_training(cfg, model, optimizer, scheduler, train_loader, val_loader, log
         trainer.train_one_epoch(epoch)
         should_eval = (epoch + 1) % int(cfg.train.eval_every) == 0 or epoch == int(cfg.train.epochs) - 1
         if should_eval:
-            top1, top5 = trainer.evaluate(epoch)
+            top1, top5, val_loss = trainer.evaluate(epoch)
             if is_main() and top1 > best_top1:
                 best_top1 = top1
-                save_checkpoint(cfg, model, optimizer, scheduler, epoch, top1, top5, ckpt_dir, "best.pth")
+                save_checkpoint(cfg, model, optimizer, scheduler, epoch, top1, top5, ckpt_dir, "best.pth", val_loss)
         if is_main() and (epoch + 1) % int(cfg.train.save_every) == 0:
             save_checkpoint(cfg, model, optimizer, scheduler, epoch, None, None, ckpt_dir, f"epoch_{epoch:03d}.pth")
     if is_main():

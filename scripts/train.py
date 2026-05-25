@@ -66,7 +66,8 @@ def main() -> None:
     scheduler = build_scheduler(cfg, optimizer, len(train_loader))
 
     run_name = cfg.logging.get("run_name", None) or Path(args.config).stem
-    ckpt_dir = args.ckpt_dir or os.path.join(str(cfg.paths.checkpoint_root), run_name)
+    epochs_dir = f"{int(cfg.train.epochs)}ep"
+    ckpt_dir = args.ckpt_dir or os.path.join(str(cfg.paths.checkpoint_root), epochs_dir, run_name)
     if is_main():
         Path(ckpt_dir).mkdir(parents=True, exist_ok=True)
         print(f"[config] {OmegaConf.to_yaml(cfg)}")

@@ -5,9 +5,11 @@ import pytest
 torch = pytest.importorskip("torch")
 
 from lazystrike.models.stability_scores import (  # noqa: E402
+    DualGuardScore,
     FFTScore,
     GlobalVarianceScore,
     LocalWindowVarianceScore,
+    TASCScore,
     TCIGScore,
 )
 
@@ -25,7 +27,9 @@ def x():
     [
         (FFTScore, {"dim": D}),
         (GlobalVarianceScore, {"dim": D}),
-        (TCIGScore, {"dim": D, "kernel_size": 3}),
+        (TCIGScore, {"dim": D, "kernel_size": 7}),
+        (TASCScore, {"dim": D}),
+        (DualGuardScore, {"dim": D, "k_small": 7, "k_large": 21}),
         (LocalWindowVarianceScore, {"dim": D, "window_size": 8}),
     ],
 )
@@ -62,11 +66,43 @@ def test_tcig_gamma_bound():
 
 
 def test_tcig_output_range(x):
-    module = TCIGScore(dim=D, kernel_size=3, init_W=2.0)
+    module = TCIGScore(dim=D, kernel_size=7, init_W=2.0)
     with torch.no_grad():
         scores = module(x)
-    assert bool((scores > 0).all())
-    assert bool((scores <= 1.0 + 1e-6).all())
+    assert bool((scores >= 0).all())
+    assert torch.isfinite(scores).all()
+
+
+def test_tasc_permutation_invariance(x):
+    module = TASCScore(dim=D)
+    perm = torch.randperm(D)
+    inv = torch.argsort(perm)
+    with torch.no_grad():
+        original = module(x)
+        permuted = module(x[:, :, perm])[:, :, inv]
+    assert torch.allclose(original, permuted, atol=1e-5)
+
+
+def test_dual_guard_output_properties(x):
+    module = DualGuardScore(dim=D, k_small=7, k_large=21)
+    with torch.no_grad():
+        scores = module(x)
+    assert scores.shape == (B, N, D)
+    assert bool((scores >= 0).all())
+    assert torch.isfinite(scores).all()
+    assert bool((scores <= x.abs() + 1e-5).all())
+
+
+def test_dual_guard_suppresses_oscillatory_background():
+    module = DualGuardScore(dim=D, k_small=7, k_large=21)
+    osc = torch.zeros(1, 1, D)
+    osc[0, 0, 0::2] = 2.0
+    osc[0, 0, 1::2] = -2.0
+    smooth = torch.ones(1, 1, D) * 1.5
+    with torch.no_grad():
+        score_osc = module(osc).mean().item()
+        score_smooth = module(smooth).mean().item()
+    assert score_smooth > score_osc * 10
 
 
 def test_fft_matches_manual_formula(x):

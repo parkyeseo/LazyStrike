@@ -28,19 +28,34 @@ def infer_patch_size(model) -> int:
     return int(patch_size)
 
 
+def read_wnids(args) -> list[str]:
+    if args.all_classes:
+        val_root = Path(args.imagenet_root) / "val"
+        wnids = sorted(p.name for p in val_root.iterdir() if p.is_dir())
+        if not wnids:
+            raise RuntimeError(f"No class directories found under {val_root}")
+        return wnids
+    return [line.strip() for line in Path(args.classes_txt).read_text().splitlines() if line.strip()]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", required=True)
-    parser.add_argument("--imagenet-root", default="/mnt/newdisk/yeseo_item/imagenet/full")
-    parser.add_argument("--classes-txt", default="/mnt/newdisk/yeseo_item/UADL_data/imagenet100_classes.txt")
+    parser.add_argument("--imagenet-root", default="/home/yeseo_item/data_14T/UADL/data/imagenet/full")
+    parser.add_argument("--classes-txt", default="/home/yeseo_item/data_14T/UADL/data/metadata/imagenet100_classes.txt")
+    parser.add_argument("--all-classes", action="store_true", help="Use all wnid directories under imagenet-root/val.")
     parser.add_argument(
         "--score-method",
-        default="patch_score_shi",
-        choices=["patch_score_shi", "patch_score_pooled", "raw_score", "vote_count"],
+        default=None,
+        help="Evaluate one score method. Kept for compatibility; prefer --score-methods.",
+    )
+    parser.add_argument(
+        "--score-methods",
+        nargs="+",
+        default=None,
         help=(
-            "patch_score_shi matches official evaluate_patch_hit.py: "
-            "cosine(patch, encoder learned CLS). patch_score_pooled uses the "
-            "model's final pooled token instead."
+            "Score methods to evaluate. Defaults to paper QCLS plus patch-mean auxiliary. "
+            "Use 'all' for qcls, mean, encoder_cls, raw_score, vote_count, and prototype."
         ),
     )
     parser.add_argument("--batch-size", type=int, default=32)
@@ -56,6 +71,23 @@ def main() -> None:
     parser.add_argument("--max-samples", type=int, default=None, help="Optional smoke-test limit; omit for paper runs.")
     parser.add_argument("--device", default=None)
     args = parser.parse_args()
+    if args.score_method and args.score_methods:
+        raise ValueError("Use either --score-method or --score-methods, not both")
+    if args.score_method:
+        score_methods = [args.score_method]
+    elif args.score_methods:
+        score_methods = args.score_methods
+    else:
+        score_methods = ["patch_score_qcls", "patch_score_mean"]
+    if score_methods == ["all"]:
+        score_methods = [
+            "patch_score_qcls",
+            "patch_score_mean",
+            "patch_score_shi",
+            "raw_score",
+            "vote_count",
+            "patch_score_prototype",
+        ]
 
     ckpt = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     cfg = OmegaConf.create(ckpt["cfg"])
@@ -75,7 +107,7 @@ def main() -> None:
             f"Patch grid mismatch: model grid={grid}, input_size={input_size}, patch_size={patch_size}"
         )
 
-    wnids = [line.strip() for line in Path(args.classes_txt).read_text().splitlines() if line.strip()]
+    wnids = read_wnids(args)
     dataset = ImageNetBBoxSubset(
         args.imagenet_root,
         wnids,
@@ -97,7 +129,7 @@ def main() -> None:
         model,
         loader,
         device,
-        score_method=args.score_method,
+        score_methods=score_methods,
         image_size=input_size,
         patch_size=patch_size,
         resize_short=args.resize_short,
@@ -110,17 +142,21 @@ def main() -> None:
             "checkpoint_epoch": ckpt.get("epoch"),
             "checkpoint_metrics": ckpt.get("metrics"),
             "imagenet_root": args.imagenet_root,
-            "classes_txt": args.classes_txt,
+            "classes_txt": "all_classes" if args.all_classes else args.classes_txt,
             "num_classes": int(cfg.data.num_classes),
             "num_pib_samples": len(dataset),
             "model_num_patches": int(model.num_patches),
             "max_bbox_area_ratio": args.max_bbox_area_ratio,
         }
     )
-    print(
-        f"PiB ({result.score_method}): {result.pib:.4f} "
-        f"({result.hits}/{result.total}, empty_patch_sets={result.empty_patch_sets})"
-    )
+    for method in result.score_methods:
+        pib = result.pibs[method]
+        hits = result.hits_by_method[method]
+        if pib is None:
+            print(f"PiB ({method}): N/A")
+        else:
+            print(f"PiB ({method}): {pib:.4f} ({hits}/{result.total})")
+    print(f"Total samples: {result.total}, empty_patch_sets={result.empty_patch_sets}")
     if args.output_json:
         out_path = Path(args.output_json)
         out_path.parent.mkdir(parents=True, exist_ok=True)

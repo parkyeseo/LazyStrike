@@ -28,9 +28,9 @@ def symlink_force(src: Path, dst: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--imagenet-root", default="/mnt/newdisk/yeseo_item/imagenet/full")
-    parser.add_argument("--out-root", default="/mnt/newdisk/yeseo_item/imagenet-100")
-    parser.add_argument("--classes-txt", default="/mnt/newdisk/yeseo_item/UADL_data/imagenet100_classes.txt")
+    parser.add_argument("--imagenet-root", default="/home/yeseo_item/data_14T/UADL/data/imagenet/full")
+    parser.add_argument("--out-root", default="/home/yeseo_item/data_14T/UADL/data/imagenet-100")
+    parser.add_argument("--classes-txt", default="/home/yeseo_item/data_14T/UADL/data/metadata/imagenet100_classes.txt")
     args = parser.parse_args()
 
     imagenet_root = Path(args.imagenet_root)

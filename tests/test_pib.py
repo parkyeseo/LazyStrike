@@ -112,3 +112,52 @@ def test_patch_score_pooled_uses_final_representation():
         score_method="patch_score_pooled",
     )
     assert int(scores.argmax(dim=1).item()) == 1
+
+
+def test_patch_score_qcls_alias_uses_final_representation():
+    patches = torch.tensor([[[1.0, 0.0], [0.0, 1.0]]])
+    encoder_cls = torch.tensor([[1.0, 0.0]])
+    qcls = torch.tensor([[0.0, 1.0]])
+    scores = patch_scores_from_model_output(
+        model=DummyModel(),
+        patches=patches,
+        scores=None,
+        pooled_cls=qcls,
+        encoder_cls=encoder_cls,
+        score_method="patch_score_qcls",
+    )
+    assert int(scores.argmax(dim=1).item()) == 1
+
+
+def test_patch_score_mean_uses_patch_average():
+    patches = torch.tensor([[[2.0, 0.0], [0.0, 1.0]]])
+    scores = patch_scores_from_model_output(
+        model=DummyModel(),
+        patches=patches,
+        scores=None,
+        pooled_cls=torch.tensor([[0.0, 1.0]]),
+        encoder_cls=torch.tensor([[0.0, 1.0]]),
+        score_method="patch_score_mean",
+    )
+    assert int(scores.argmax(dim=1).item()) == 0
+
+
+def test_evaluate_pib_multiple_methods():
+    batch = {
+        "image": torch.zeros(1, 3, 224, 224),
+        "bbox": torch.tensor([[16.0, 16.0, 16.0, 16.0]]),
+        "image_width": torch.tensor([224]),
+        "image_height": torch.tensor([224]),
+    }
+    result = evaluate_pib(
+        DummyModel(),
+        [batch],
+        torch.device("cpu"),
+        score_methods=["raw_score", "patch_score_qcls"],
+        image_size=224,
+        patch_size=16,
+        resize_short=224,
+    )
+    assert result.total == 1
+    assert result.hits_by_method["raw_score"] == 1
+    assert result.pibs["raw_score"] == 1.0

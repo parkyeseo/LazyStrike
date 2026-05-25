@@ -149,8 +149,10 @@ def save_pca(image_display: Image.Image, patches: torch.Tensor, grid: int, save_
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", nargs="+", required=True, help="Checkpoint paths or name=/path/to/best.pth entries.")
-    parser.add_argument("--images", nargs="+", required=True)
-    parser.add_argument("--out-dir", default="/mnt/newdisk/yeseo_item/UADL_viz")
+    parser.add_argument("--images", nargs="+", required=True, help="Image files or directories.")
+    parser.add_argument("--out-dir", default="/home/yeseo_item/data_14T/UADL/viz")
+    parser.add_argument("--num-samples", type=int, default=0, help="Randomly sample this many images from directories.")
+    parser.add_argument("--input-size", type=int, default=None, help="Override checkpoint input size for visualization.")
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--selection-k", type=int, default=1)
     parser.add_argument("--device", default=None)
@@ -165,40 +167,87 @@ def main() -> None:
     for ckpt_arg in args.ckpt:
         name, path = parse_ckpt(ckpt_arg)
         model, cfg, _ckpt = load_model_from_ckpt(path, device)
-        input_size = int(cfg.data.input_size)
+        input_size = int(args.input_size or cfg.data.input_size)
         patch_size = infer_patch_size(model)
-        grid = int(model.num_patches**0.5)
-        if grid * grid != int(model.num_patches):
-            raise ValueError(f"{name}: expected square patch grid, got num_patches={model.num_patches}")
+        if input_size % patch_size != 0:
+            raise ValueError(f"{name}: input_size={input_size} is not divisible by patch_size={patch_size}")
+        grid = input_size // patch_size
         if input_size != grid * patch_size:
             raise ValueError(f"{name}: input_size={input_size} does not match grid={grid}, patch_size={patch_size}")
         models.append((name, model, cfg, grid, patch_size))
 
-    for image_path in args.images:
+    image_paths = []
+    valid_exts = {".jpg", ".jpeg", ".png", ".bmp"}
+    for image_arg in args.images:
+        path = Path(image_arg)
+        if path.is_file() and path.suffix.lower() in valid_exts:
+            image_paths.append(path)
+        elif path.is_dir():
+            for ext in valid_exts:
+                image_paths.extend(path.rglob(f"*{ext}"))
+                image_paths.extend(path.rglob(f"*{ext.upper()}"))
+    image_paths = sorted(set(image_paths))
+    if args.num_samples > 0 and len(image_paths) > args.num_samples:
+        rng = np.random.default_rng(42)
+        image_paths = sorted(rng.choice(image_paths, size=args.num_samples, replace=False).tolist())
+    if not image_paths:
+        raise ValueError("No valid images found")
+
+    for image_path in image_paths:
         image = Image.open(image_path).convert("RGB")
-        stem = Path(image_path).stem
+        stem = image_path.stem
         for name, model, cfg, grid, patch_size in models:
             run_dir = out_dir / name
             run_dir.mkdir(parents=True, exist_ok=True)
-            input_size = int(cfg.data.input_size)
+            input_size = int(args.input_size or cfg.data.input_size)
             transform = build_val_transform(input_size)
-            image_display = official_display_image(image, image_size=input_size)
+            display_resize_short = input_size if args.input_size else 256
+            image_display = official_display_image(
+                image,
+                image_size=input_size,
+                resize_short=display_resize_short,
+            )
             x = transform(image).unsqueeze(0).to(device)
 
             with torch.no_grad():
-                patches, scores, cls, logits = model.forward_with_scores(x)
+                encoder_cls, patches = model.forward_tokens(x)
+                qcls, scores = model.aggregate(patches, encoder_cls)
+                logits = model.head(qcls)
 
-            patch_score = shi_patch_score(patches, cls)[0]
+            patch_score = shi_patch_score(patches, qcls)[0]
             save_official_patch_score_figure(
                 image_display=image_display,
                 score_values=patch_score,
                 logits=logits[0],
                 grid=grid,
                 patch_size=patch_size,
-                save_path=run_dir / f"{stem}_patch_score_official.png",
+                save_path=run_dir / f"{stem}_patch_score_qcls.png",
                 top_k=args.top_k,
-                title_prefix=f"{name} / {stem}",
+                title_prefix=f"{name} / {stem} / QCLS",
             )
+            mean_patch_score = shi_patch_score(patches, patches.mean(dim=1))[0]
+            save_official_patch_score_figure(
+                image_display=image_display,
+                score_values=mean_patch_score,
+                logits=logits[0],
+                grid=grid,
+                patch_size=patch_size,
+                save_path=run_dir / f"{stem}_patch_score_mean.png",
+                top_k=args.top_k,
+                title_prefix=f"{name} / {stem} / patch mean",
+            )
+            if encoder_cls is not None:
+                encoder_patch_score = shi_patch_score(patches, encoder_cls)[0]
+                save_official_patch_score_figure(
+                    image_display=image_display,
+                    score_values=encoder_patch_score,
+                    logits=logits[0],
+                    grid=grid,
+                    patch_size=patch_size,
+                    save_path=run_dir / f"{stem}_patch_score_encoder_cls.png",
+                    top_k=args.top_k,
+                    title_prefix=f"{name} / {stem} / encoder CLS",
+                )
             save_overlay(
                 image_display,
                 patches[0].norm(dim=-1),

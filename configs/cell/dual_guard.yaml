@@ -1,0 +1,9 @@
+logging:
+  run_name: E1_dual_guard
+  tags: [imagenet100, E1, cell_dual_guard]
+model:
+  score:
+    name: dual_guard
+    kwargs:
+      k_small: 7
+      k_large: 21

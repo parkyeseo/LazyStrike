@@ -1,0 +1,9 @@
+logging:
+  run_name: E1_tasc
+  tags: [imagenet100, E1, cell_tasc]
+model:
+  score:
+    name: tasc
+    kwargs:
+      init_W: 2.0
+      learnable_gamma: false

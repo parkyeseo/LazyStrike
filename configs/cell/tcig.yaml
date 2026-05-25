@@ -5,6 +5,6 @@ model:
   score:
     name: tcig
     kwargs:
-      kernel_size: 3
+      kernel_size: 7
       init_W: 2.0
       learnable_gamma: false

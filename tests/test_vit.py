@@ -32,7 +32,9 @@ def make_cfg(score_name, score_kwargs=None, K=98, vanilla_pool="cls"):
     [
         ("fft", {}),
         ("global_var", {}),
-        ("tcig", {"kernel_size": 3, "init_W": 2.0}),
+        ("tcig", {"kernel_size": 7, "init_W": 2.0}),
+        ("tasc", {"init_W": 2.0}),
+        ("dual_guard", {"k_small": 7, "k_large": 21}),
         ("local_var", {"window_size": 8}),
     ],
 )

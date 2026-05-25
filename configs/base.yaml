@@ -1,28 +1,31 @@
 data:
   name: imagenet100
-  root: /mnt/newdisk/yeseo_item/imagenet-100
+  root: /home/yeseo_item/data_14T/UADL/data/imagenet-100
   num_classes: 100
   input_size: 224
   batch_size_per_gpu: 256
   num_workers: 8
 
 paths:
-  imagenet_raw: /mnt/newdisk/yeseo_item/imagenet/raw
-  imagenet_full: /mnt/newdisk/yeseo_item/imagenet/full
-  imagenet100_classes: /mnt/newdisk/yeseo_item/UADL_data/imagenet100_classes.txt
-  checkpoint_root: /mnt/newdisk/yeseo_item/UADL_checkpoints
-  viz_root: /mnt/newdisk/yeseo_item/UADL_viz
+  imagenet_raw: /home/yeseo_item/data_14T/UADL/data/imagenet/raw
+  imagenet_full: /home/yeseo_item/data_14T/UADL/data/imagenet/full
+  imagenet100_classes: /home/yeseo_item/data_14T/UADL/data/metadata/imagenet100_classes.txt
+  checkpoint_root: /home/yeseo_item/data_14T/UADL/checkpoints
+  viz_root: /home/yeseo_item/data_14T/UADL/viz
 
 model:
   backbone: vit_small_patch16_224
   drop_path_rate: 0.1
   pretrained: false
+  pretrained_head: false
+  init_ckpt: null
+  dynamic_img_size: false
   vanilla_pool: cls
   score: null
   aggregator:
     name: topk_channel
     kwargs:
-      K: 98
+      K: 7
 
 train:
   seed: 0
@@ -50,6 +53,7 @@ train:
 
 logging:
   use_wandb: true
+  wandb_dir: /home/yeseo_item/data_14T/UADL
   entity: UADL-LazyStrike
   project: lazy-strike-v1
   run_name: null

@@ -12,6 +12,8 @@ htmlcov/
 .codex/
 wandb/
 checkpoints/
+logs/
+viz/
 viz_out/
 outputs/
 *.pth

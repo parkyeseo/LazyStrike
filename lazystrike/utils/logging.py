@@ -17,6 +17,7 @@ class WandbLogger:
                 project=cfg.logging.project,
                 entity=cfg.logging.get("entity", None),
                 name=run_name,
+                dir=cfg.logging.get("wandb_dir", None),
                 config=OmegaConf.to_container(cfg, resolve=True),
                 tags=list(cfg.logging.get("tags", [])),
                 resume="allow",
@@ -44,4 +45,3 @@ class NullLogger:
 
     def finish(self) -> None:
         pass
-

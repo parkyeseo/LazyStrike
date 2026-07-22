@@ -1,9 +1,0 @@
-logging:
-  run_name: E5_local_var_wD_alias_global_var
-  tags: [imagenet100, E5, w_sweep, alias_global_var]
-model:
-  score:
-    name: local_var
-    kwargs:
-      window_size: 384
-

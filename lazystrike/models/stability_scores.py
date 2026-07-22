@@ -54,9 +54,8 @@ class FFTScore(StabilityScore):
         x_fft = x_fft * kernel
         x_fft = torch.fft.ifftshift(x_fft, dim=-1)
         x_hat = torch.fft.ifft(x_fft, dim=-1).real
-        # Official LaSt-ViT uses the raw patch value as numerator:
-        # diff = x_detach / abs(lowpass_fft(x_detach) - x_detach).
-        scores = x_fp32 / (torch.abs(x_hat - x_fp32) + EPS)
+        # Final paper definition: the low-pass reconstruction is the numerator.
+        scores = x_hat / (torch.abs(x_hat - x_fp32) + EPS)
         return scores.to(orig_dtype)
 
 
@@ -74,13 +73,12 @@ class GlobalVarianceScore(StabilityScore):
 
 
 class TCIGScore(StabilityScore):
-    """Cell 3: magnitude-aware local smoothing score.
+    """Cell 3: local smoothing plus a symmetric exponential gate.
 
-    The score keeps channels whose local low-pass estimate remains large, while
-    squaring the estimate suppresses high-frequency spikes more aggressively.
-    ``init_W`` and ``learnable_gamma`` are accepted for config compatibility
-    with earlier TCIG experiments, but the current hard top-K score does not use
-    gamma.
+    The public paper defines ``ratio = ||x| - |x_hat|| / (|x| + |x_hat| + eps)``
+    and ``score = exp(-ratio)``. ``init_W`` and ``learnable_gamma`` remain in
+    the constructor only so historical checkpoint configurations still load;
+    they do not alter the released score definition.
     """
 
     def __init__(
@@ -95,12 +93,9 @@ class TCIGScore(StabilityScore):
             raise ValueError("kernel_size must be odd for symmetric padding")
         self.dim = int(dim)
         self.k = int(kernel_size)
-        self.learnable_gamma = bool(learnable_gamma)
+        self.learnable_gamma = False
         raw_gamma = torch.tensor(float(init_W))
-        if self.learnable_gamma:
-            self.W_gamma = nn.Parameter(raw_gamma)
-        else:
-            self.register_buffer("W_gamma", raw_gamma)
+        self.register_buffer("W_gamma", raw_gamma)
 
     @property
     def gamma(self) -> torch.Tensor:
@@ -116,7 +111,8 @@ class TCIGScore(StabilityScore):
 
         x_abs = x.abs()
         x_hat_abs = x_hat.abs()
-        return x_hat_abs.pow(2) / (x_abs + EPS)
+        ratio = torch.abs(x_abs - x_hat_abs) / (x_abs + x_hat_abs + EPS)
+        return torch.exp(-ratio)
 
 
 class LocalWindowVarianceScore(StabilityScore):
@@ -154,12 +150,9 @@ class TASCScore(StabilityScore):
     ):
         super().__init__()
         self.dim = int(dim)
-        self.learnable_gamma = bool(learnable_gamma)
+        self.learnable_gamma = False
         raw_gamma = torch.tensor(float(init_W))
-        if self.learnable_gamma:
-            self.W_gamma = nn.Parameter(raw_gamma)
-        else:
-            self.register_buffer("W_gamma", raw_gamma)
+        self.register_buffer("W_gamma", raw_gamma)
 
     @property
     def gamma(self) -> torch.Tensor:

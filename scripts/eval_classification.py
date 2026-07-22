@@ -24,6 +24,11 @@ def main() -> None:
 
     ckpt = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     cfg = OmegaConf.create(ckpt["cfg"])
+    # The checkpoint state is restored below; do not rerun training-time
+    # initializers or trigger a pretrained-weight download during evaluation.
+    cfg.model.init_ckpt = None
+    cfg.model.pretrained = False
+    cfg.model.pretrained_head = False
     rank, world_size, local_rank = init_distributed()
     device = torch.device("cuda", local_rank) if torch.cuda.is_available() else torch.device("cpu")
 

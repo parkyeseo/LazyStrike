@@ -70,7 +70,23 @@ def test_tcig_output_range(x):
     with torch.no_grad():
         scores = module(x)
     assert bool((scores >= 0).all())
+    assert bool((scores <= 1).all())
     assert torch.isfinite(scores).all()
+
+
+def test_tcig_matches_paper_formula(x):
+    module = TCIGScore(dim=D, kernel_size=7)
+    with torch.no_grad():
+        scores = module(x)
+        x_flat = x.reshape(B * N, 1, D)
+        x_hat = torch.nn.functional.avg_pool1d(
+            torch.nn.functional.pad(x_flat, (3, 3), mode="replicate"),
+            kernel_size=7,
+            stride=1,
+        ).reshape(B, N, D)
+        ratio = (x.abs() - x_hat.abs()).abs() / (x.abs() + x_hat.abs() + 1e-6)
+        expected = torch.exp(-ratio)
+    assert torch.allclose(scores, expected, atol=1e-6)
 
 
 def test_tasc_permutation_invariance(x):
@@ -114,5 +130,5 @@ def test_fft_matches_manual_formula(x):
         x_fft = torch.fft.fftshift(x_fft, dim=-1) * module.gs_k
         x_fft = torch.fft.ifftshift(x_fft, dim=-1)
         x_hat = torch.fft.ifft(x_fft, dim=-1).real
-        expected = x.float() / (torch.abs(x_hat - x.float()) + 1e-6)
+        expected = x_hat / (torch.abs(x_hat - x.float()) + 1e-6)
     assert torch.allclose(scores, expected.to(scores.dtype), atol=1e-5)

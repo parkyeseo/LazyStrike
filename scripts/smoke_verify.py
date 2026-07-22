@@ -92,10 +92,8 @@ def main() -> None:
     }
     model = build_model(cfg, num_classes=100)
     optimizer = build_optimizer(cfg, model)
-    assert any(group.get("group_name") == "tcig_gamma" for group in optimizer.param_groups)
-    gamma_lr = next(group["lr"] for group in optimizer.param_groups if group.get("group_name") == "tcig_gamma")
-    assert abs(gamma_lr - 5e-5) < 1e-12
-    print("tcig gamma optimizer group opt-in ok")
+    assert not any(group.get("group_name") == "tcig_gamma" for group in optimizer.param_groups)
+    print("legacy learnable_gamma config remains parameter-free ok")
     print("SMOKE_VERIFY_OK")
 
 

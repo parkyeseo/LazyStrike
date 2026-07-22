@@ -1,17 +1,17 @@
 data:
   name: imagenet100
-  root: /home/yeseo_item/data_14T/UADL/data/imagenet-100
+  root: data/imagenet-100
   num_classes: 100
   input_size: 224
   batch_size_per_gpu: 256
   num_workers: 8
 
 paths:
-  imagenet_raw: /home/yeseo_item/data_14T/UADL/data/imagenet/raw
-  imagenet_full: /home/yeseo_item/data_14T/UADL/data/imagenet/full
-  imagenet100_classes: /home/yeseo_item/data_14T/UADL/data/metadata/imagenet100_classes.txt
-  checkpoint_root: /home/yeseo_item/data_14T/UADL/checkpoints
-  viz_root: /home/yeseo_item/data_14T/UADL/viz
+  imagenet_raw: data/imagenet/raw
+  imagenet_full: data/imagenet/full
+  imagenet100_classes: data/imagenet100_classes.txt
+  checkpoint_root: artifacts/checkpoints
+  viz_root: artifacts/viz
 
 model:
   backbone: vit_small_patch16_224
@@ -53,9 +53,9 @@ train:
 
 logging:
   use_wandb: true
-  wandb_dir: /home/yeseo_item/data_14T/UADL
-  entity: UADL-LazyStrike
-  project: lazy-strike-v1
+  wandb_dir: artifacts/wandb
+  entity: null
+  project: lazy-strike
   run_name: null
   tags: [imagenet100]
   log_every: 50

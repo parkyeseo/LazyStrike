@@ -62,6 +62,9 @@ def main() -> None:
 
     ckpt = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     cfg = OmegaConf.create(ckpt["cfg"])
+    cfg.model.init_ckpt = None
+    cfg.model.pretrained = False
+    cfg.model.pretrained_head = False
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model = build_model(cfg, int(cfg.data.num_classes)).to(device)
     model.load_state_dict(ckpt["model"], strict=True)

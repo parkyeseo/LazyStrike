@@ -150,7 +150,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", nargs="+", required=True, help="Checkpoint paths or name=/path/to/best.pth entries.")
     parser.add_argument("--images", nargs="+", required=True, help="Image files or directories.")
-    parser.add_argument("--out-dir", default="/home/yeseo_item/data_14T/UADL/viz")
+    parser.add_argument("--out-dir", default="artifacts/viz")
     parser.add_argument("--num-samples", type=int, default=0, help="Randomly sample this many images from directories.")
     parser.add_argument("--input-size", type=int, default=None, help="Override checkpoint input size for visualization.")
     parser.add_argument("--top-k", type=int, default=10)

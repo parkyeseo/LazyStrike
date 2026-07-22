@@ -138,8 +138,8 @@ def prepare_bbox(raw_root: Path, out_root: Path, skip_md5: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--raw-root", default="/home/yeseo_item/data_14T/UADL/data/imagenet/raw")
-    parser.add_argument("--out-root", default="/home/yeseo_item/data_14T/UADL/data/imagenet/full")
+    parser.add_argument("--raw-root", default="data/imagenet/raw")
+    parser.add_argument("--out-root", default="data/imagenet/full")
     parser.add_argument("--skip-md5", action="store_true")
     parser.add_argument("--skip-train", action="store_true")
     parser.add_argument("--skip-val", action="store_true")

@@ -4,6 +4,4 @@ logging:
 model:
   score:
     name: tasc
-    kwargs:
-      init_W: 2.0
-      learnable_gamma: false
+    kwargs: {}

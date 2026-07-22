@@ -3,10 +3,10 @@ set -euo pipefail
 
 TIER=${1:-tier1}
 NGPU=${NGPU:-4}
-DATA_ROOT=${DATA_ROOT:-/home/yeseo_item/data_14T/UADL/data/imagenet-100}
-IMAGENET_FULL=${IMAGENET_FULL:-/home/yeseo_item/data_14T/UADL/data/imagenet/full}
-PIB_OUT=${PIB_OUT:-/home/yeseo_item/data_14T/UADL/eval/pib}
-CKPT_ROOT=${CKPT_ROOT:-/home/yeseo_item/data_14T/UADL/checkpoints}
+DATA_ROOT=${DATA_ROOT:-data/imagenet-100}
+IMAGENET_FULL=${IMAGENET_FULL:-data/imagenet/full}
+PIB_OUT=${PIB_OUT:-artifacts/eval/pib}
+CKPT_ROOT=${CKPT_ROOT:-artifacts/checkpoints}
 PIB_SCORE_METHODS=${PIB_SCORE_METHODS:-"patch_score_qcls patch_score_mean"}
 
 run() {
@@ -69,5 +69,4 @@ fi
 if [[ "${TIER}" == "tier3" || "${TIER}" == "all" ]]; then
   run configs/cell/tcig.yaml model.score.kwargs.kernel_size=5 logging.run_name=tcig_k5
   run configs/cell/tcig.yaml model.score.kwargs.kernel_size=7 logging.run_name=tcig_k7
-  run configs/cell/tcig.yaml train.gamma_lr_scale=1.0 logging.run_name=tcig_gamma_lr1x
 fi

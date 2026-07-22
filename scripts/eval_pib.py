@@ -41,8 +41,8 @@ def read_wnids(args) -> list[str]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", required=True)
-    parser.add_argument("--imagenet-root", default="/home/yeseo_item/data_14T/UADL/data/imagenet/full")
-    parser.add_argument("--classes-txt", default="/home/yeseo_item/data_14T/UADL/data/metadata/imagenet100_classes.txt")
+    parser.add_argument("--imagenet-root", default="data/imagenet/full")
+    parser.add_argument("--classes-txt", default="data/imagenet100_classes.txt")
     parser.add_argument("--all-classes", action="store_true", help="Use all wnid directories under imagenet-root/val.")
     parser.add_argument(
         "--score-method",
@@ -91,6 +91,10 @@ def main() -> None:
 
     ckpt = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     cfg = OmegaConf.create(ckpt["cfg"])
+    # Evaluation restores the trained state below; skip training-time initializers.
+    cfg.model.init_ckpt = None
+    cfg.model.pretrained = False
+    cfg.model.pretrained_head = False
     device_name = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device(device_name)
     model = build_model(cfg, int(cfg.data.num_classes)).to(device)

@@ -1,6 +1,6 @@
 data:
   name: imagenet1k
-  root: /home/yeseo_item/data_14T/UADL/data/imagenet/full
+  root: data/imagenet/full
   num_classes: 1000
 logging:
   run_name: E1k_tcig
@@ -12,5 +12,3 @@ model:
     name: tcig
     kwargs:
       kernel_size: 7
-      init_W: 2.0
-      learnable_gamma: false

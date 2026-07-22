@@ -2,7 +2,7 @@
 
 Official research implementation for **Beyond FFT: Frequency vs. Variance vs. Sparsity**.
 
-**[Read the paper (PDF)](paper/beyond_fft_frequency_variance_sparsity.pdf)** · [LaTeX source](paper/main.tex) · [Code specification](docs/CODE_SPEC.md) · [Release guide](docs/RELEASING.md)
+**[Read the paper (PDF)](paper/Beyond%20FFT%20-%20Frequency%20vs.%20Variance%20vs.%20Sparsity.pdf)** · [LaTeX source](paper/main.tex) · [Code specification](docs/CODE_SPEC.md) · [Release guide](docs/RELEASING.md)
 
 ![LazyStrike method overview](paper/figures/method_overview.png)
 

@@ -44,7 +44,7 @@ Keep these values synchronized:
 
 Recommended assets:
 
-- `beyond_fft_frequency_variance_sparsity.pdf`;
+- `Beyond FFT - Frequency vs. Variance vs. Sparsity.pdf`;
 - source archive automatically generated from the tag;
 - optional checksums for separately hosted checkpoints;
 - release notes with environment, dataset split provenance, tested commit, and known limitations.
